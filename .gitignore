@@ -1,0 +1,4 @@
+Example/DevReplyExample.xcodeproj/
+.build/
+.swiftpm/
+Example/Info.plist
