@@ -12,11 +12,11 @@ Requires iOS 17, Swift 6 / Xcode 16 or later.
 
 ## Install
 
-Swift Package Manager: `https://github.com/Code-Axolot-Team/devreply-ios`, product `DevReply`, "Up to Next Major" from `0.3.0`.
+Swift Package Manager: `https://github.com/Code-Axolot-Team/devreply-ios`, product `DevReply`, "Up to Next Major" from `0.3.1`.
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/Code-Axolot-Team/devreply-ios", from: "0.3.0")
+.package(url: "https://github.com/Code-Axolot-Team/devreply-ios", from: "0.3.1")
 ```
 
 Using a coding agent? Give it your app's setup guide from the dashboard (Settings → Add DevReply to your app):

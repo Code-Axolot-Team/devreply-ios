@@ -94,13 +94,24 @@ final class ConversationModel {
         let item = Pending(text: text, attachments: attachments)
         pending.append(item)
         sentCount += 1
-        Task { await deliver(item) }
+        enqueue(item)
     }
 
     func retry(_ item: Pending) {
         guard let index = pending.firstIndex(of: item) else { return }
         pending[index].failure = nil
-        Task { await deliver(pending[index]) }
+        enqueue(pending[index])
+    }
+
+    /// Sends go out one at a time, in the order typed: two in flight could reach the server swapped.
+    private var queue: Task<Void, Never>?
+
+    private func enqueue(_ item: Pending) {
+        let previous = queue
+        queue = Task {
+            await previous?.value
+            await deliver(item)
+        }
     }
 
     private func deliver(_ item: Pending) async {

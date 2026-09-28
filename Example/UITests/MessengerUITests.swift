@@ -184,14 +184,22 @@ final class MessengerUITests: XCTestCase {
         app.launchEnvironment["DEVREPLY_PK"] = pk
         app.launch()
         app.buttons["openMessenger"].tap()
-        let existing = app.buttons.containing(NSPredicate(format: "label CONTAINS 'Message number'")).firstMatch
-        XCTAssertTrue(existing.waitForExistence(timeout: 15))
+        let existing = app.buttons.containing(
+            NSPredicate(format: "label CONTAINS 'Message number' OR label CONTAINS 'Back after a break'")
+        ).firstMatch
+        XCTAssertTrue(app.buttons["devreply.start.bug"].waitForExistence(timeout: 15))
+        for _ in 0..<5 where !(existing.exists && existing.isHittable) { app.swipeUp() }
+        XCTAssertTrue(existing.waitForExistence(timeout: 5))
         existing.tap()
-        let last = app.staticTexts["Message number 12 with enough words to take some room"]
-        XCTAssertTrue(last.waitForExistence(timeout: 10))
+        // The newest message of the seeded chat (a later test may have added "Back after a break …").
+        let seeded = NSPredicate(format: "label BEGINSWITH 'Message number' OR label BEGINSWITH 'Back after a break'")
+        XCTAssertTrue(app.staticTexts.matching(seeded).firstMatch.waitForExistence(timeout: 10))
+        sleep(1)
+        let last = app.staticTexts.matching(seeded).allElementsBoundByIndex.max { $0.frame.maxY < $1.frame.maxY }!
         let composer = app.textFields["devreply.composer"].exists ? app.textFields["devreply.composer"] : app.textViews["devreply.composer"]
         snapshot(app, "k1-closed")
 
+        closeAskCards(app)
         composer.tap()
         XCTAssertTrue(app.keyboards.element.waitForExistence(timeout: 5), "keyboard up")
         sleep(1)
@@ -253,8 +261,13 @@ final class MessengerUITests: XCTestCase {
         XCTAssertTrue(sent.waitForExistence(timeout: 10))
         sleep(1)
         XCTAssertTrue(app.keyboards.element.exists, "sending keeps the keyboard up")
-        XCTAssertLessThan(sent.frame.maxY, composer.frame.minY, "the message sits right above the composer")
-        XCTAssertGreaterThan(sent.frame.maxY, composer.frame.minY - 120)
+        closeAskCards(app)
+        if !app.keyboards.element.exists { composer.tap(); sleep(1) }
+        // The first message, then the "we got it" notice under it, right above the composer.
+        let notice = app.descendants(matching: .any)["devreply.notice"]
+        XCTAssertLessThan(sent.frame.maxY, notice.frame.minY, "the message, then the notice")
+        XCTAssertLessThan(notice.frame.maxY, composer.frame.minY, "the notice sits right above the composer")
+        XCTAssertGreaterThan(notice.frame.maxY, composer.frame.minY - 60)
         snapshot(app, "ks2-one-message")
         from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0.1)
         sleep(1)
@@ -499,6 +512,15 @@ final class MessengerUITests: XCTestCase {
         let reply = app.staticTexts["Founder reply \(nonce)"]
         XCTAssertTrue(reply.waitForExistence(timeout: 90), "founder reply arrives in the native chat")
         snapshot(app, "6-founder-reply")
+    }
+
+    /// The cards that can sit between the thread and the composer on a fresh install (email ask,
+    /// notifications ask): closed, so measurements are about the thread itself.
+    @MainActor
+    private func closeAskCards(_ app: XCUIApplication) {
+        if app.buttons["devreply.emailask.skip"].exists { app.buttons["devreply.emailask.skip"].tap() }
+        if app.buttons["devreply.push.notnow"].exists { app.buttons["devreply.push.notnow"].tap() }
+        sleep(1)
     }
 
     @MainActor
