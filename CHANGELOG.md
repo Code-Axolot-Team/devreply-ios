@@ -4,6 +4,24 @@ Released versions stay supported: the API only grows, and every released version
 against the server on every change. Features added later may be missing in an older version; nothing it
 uses breaks.
 
+## 0.4.4
+
+* `DevReply.present(category:message:attributes:)`: `message` prefills the composer of the new conversation
+  (never sent on its own; the user can edit it), `attributes` go to the team as that conversation's context
+  (text, number or true/false; up to 20). Returns `false` and shows nothing when DevReply isn't configured
+  or the chat is switched off; the old `present()` / `present(category:)` calls keep compiling.
+* `await DevReply.deleteUser()` never gives up: if DevReply can't be reached, the device forgets the user at
+  once and the deletion is retried (with the old install's token, kept in the Keychain) at every launch and
+  return to the foreground until the server confirms. `true` = deleted now, `false` = queued.
+* The chat on/off switch from the dashboard: `DevReply.isAvailable`. While off, `present` returns `false`,
+  the unread bubble and banners stay hidden and an open messenger closes; everything else keeps working.
+* Events for your analytics: `DevReply.addEventListener { event in … }` with `.messengerOpened`,
+  `.messengerClosed`, `.conversationStarted(conversationID:category:)`, `.messageSent(conversationID:)`;
+  `cancel()` the returned subscription to stop.
+* Dark mode, opt-in: `DevReply.darkTheme = .dark` (DevReply's own "Deep blue" look) or a `DevReplyTheme` with
+  your six colours. Without it the chat stays light, exactly as before. Every colour in the chat, its menus and
+  pickers, the unread bubble and the in-app banner follows the theme; the category icons have dark artwork.
+
 ## 0.4.3
 
 * Signed-in users: `DevReply.login(userID:)` after sign-in (your own id for the user; the team sees it, your

@@ -12,11 +12,11 @@ Requires iOS 17, Swift 6 / Xcode 16 or later.
 
 ## Install
 
-Swift Package Manager: `https://github.com/Code-Axolot-Team/devreply-ios`, product `DevReply`, "Up to Next Major" from `0.4.3`.
+Swift Package Manager: `https://github.com/Code-Axolot-Team/devreply-ios`, product `DevReply`, "Up to Next Major" from `0.4.4`.
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/Code-Axolot-Team/devreply-ios", from: "0.4.3")
+.package(url: "https://github.com/Code-Axolot-Team/devreply-ios", from: "0.4.4")
 ```
 
 Using a coding agent? Give it your app's setup guide from the dashboard (Settings → Add DevReply to your app):
@@ -37,6 +37,7 @@ DevReply.present()                    // or present(category: .bug)
 DevReply.setUser(name: "Ana", email: "ana@example.com")
 DevReply.setAttributes(["plan": "pro", "trial": false])
 DevReply.theme = DevReplyTheme(primary: .yellow, accent: .pink)
+DevReply.darkTheme = .dark            // dark mode (off by default: the chat stays light)
 DevReply.showsUnreadBubble = false    // if you show DevReply.unreadCount yourself
 DevReply.setLocale("es")              // your app's own language setting; nil follows the device
 ```
@@ -59,6 +60,41 @@ Then set `yourapp://devreply` as the deep link in the dashboard (the app → Set
 
 SwiftUI: `.devReplyMessenger(isPresented: $showChat)`.
 
+**A draft and context:** open a new conversation with text already in the composer (the user sees it and can edit it
+before sending; nothing is sent on its own) and context for your team, shown with that conversation only:
+
+```swift
+DevReply.present(category: .bug, message: "The export failed: ", attributes: ["screen": "export", "items": 42])
+```
+
+`present` returns `false` and shows nothing when DevReply isn't configured or your team switched the chat off in the
+dashboard. `DevReply.isAvailable` tells you up front (to hide your own "Contact us" button, say). While it's off, the
+unread bubble and banners stay hidden too; login, logout, deleteUser, push and attributes keep working.
+
+**Events** for your analytics:
+
+```swift
+let subscription = DevReply.addEventListener { event in
+    switch event {
+    case .messengerOpened, .messengerClosed: break
+    case .conversationStarted(let id, let category): analytics.log("support_started", id, category)
+    case .messageSent(let id): analytics.log("support_message", id)
+    }
+}
+subscription.cancel()                 // when you no longer need it
+```
+
+**Dark mode:** set `DevReply.darkTheme` (`.dark` is DevReply's own dark look, or your own `DevReplyTheme`) and the
+chat follows the app's appearance, including `overrideUserInterfaceStyle`. Without it the chat stays light.
+
+Both themes take the same six colours: `primary` (header and highlights), `accent` (buttons that act), `userBubble`,
+`userBubbleText`, `background` and `ink` (text and outlines). Everything else is worked out from them: in dark, the
+cards, secondary text, shadows and the text on buttons (dark or white, whichever reads better).
+
+```swift
+DevReply.darkTheme = DevReplyTheme(primary: .purple, accent: .orange, background: Color(white: 0.08), ink: .white)
+```
+
 **Push:** pass the device token from your app delegate with `DevReply.registerPush(deviceToken)`. DevReply never
 takes over your notification handling: it sets its own delegate only when your app has none. If your app has its
 own `UNUserNotificationCenterDelegate`, forward with `DevReply.presentationOptions(for:)` and
@@ -75,7 +111,7 @@ If your app has accounts:
 ```swift
 DevReply.login(userID: account.id)     // after sign-in: your own id for the user, never an email or a secret
 DevReply.logout()                      // on every sign-out and account switch
-let ok = await DevReply.deleteUser()   // in your delete-account flow; false if DevReply couldn't be reached
+let deleted = await DevReply.deleteUser()   // in your delete-account flow; false = queued, retried until done
 ```
 
 - `login` labels the user for your team (the dashboard shows it as "User ID (your app)") and lets your backend
@@ -84,7 +120,9 @@ let ok = await DevReply.deleteUser()   // in your delete-account flow; false if 
 - `logout` revokes this install and its push token; the device forgets the chat and the next person starts empty.
   The conversations stay with your team.
 - `deleteUser` deletes the user's name, email, attributes, conversations, messages and files, then logs out.
-  Apple requires account deletion in the app.
+  Apple requires account deletion in the app. It never gives up: if DevReply can't be reached, the device forgets
+  the user at once and returns `false`, and the SDK retries the deletion (with the old install's token, kept in the
+  Keychain) at every launch and return to the foreground until the server confirms. `true` = deleted now.
 - A reinstall starts clean: the Keychain outlives the app, and the SDK tells a reinstall from a launch.
 
 Your backend can delete a user too, with a read-and-write secret key (never in an app):
@@ -104,6 +142,10 @@ cd Example && xcodegen
 xcodebuild -scheme DevReplyExample DEVELOPMENT_TEAM=<your team> DEVREPLY_PK=pk_… -destination 'generic/platform=iOS' build
 xcodebuild -scheme DevReply -destination 'platform=iOS Simulator,name=iPhone 17' test   # from the package root
 ```
+
+The example's UI tests need a throwaway app's key (`TEST_RUNNER_DEVREPLY_TEST_PK=pk_…`), except `V044UITests`: they run
+the example against an in-process fake of the API (`DEVREPLY_STUB=1`, `Example/Sources/StubAPI.swift`) and need no
+account. `TEST_RUNNER_DEVREPLY_SHOTS=<folder>` also saves their screenshots there.
 
 ## License
 
