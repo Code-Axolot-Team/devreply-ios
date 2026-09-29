@@ -53,7 +53,7 @@ public enum Brand {
 enum BrandFont {
     /// Registers the bundled fonts once, for this process only. Never touches the host app's fonts.
     @MainActor static let register: Void = {
-        let urls = Bundle.module.urls(forResourcesWithExtension: "ttf", subdirectory: "Fonts") ?? []
+        let urls = Bundle.devReply.urls(forResourcesWithExtension: "ttf", subdirectory: "Fonts") ?? []
         for url in urls {
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }
@@ -86,7 +86,7 @@ extension Font {
 // MARK: - Category icons (SVG, Resources/Icons.xcassets)
 
 extension DevReplyCategory {
-    var icon: Image { Image("devreply-\(rawValue)", bundle: .module) }
+    var icon: Image { Image("devreply-\(rawValue)", bundle: .devReply) }
 
     var defaultTitle: String {
         switch self {

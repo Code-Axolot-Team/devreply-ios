@@ -95,6 +95,8 @@ public enum DevReply {
     }
 
     private static func presentMessenger(_ view: MessengerView) {
+        // The chat is opening: a banner about a reply would only sit on top of it.
+        InAppBanner.shared.hide(animated: false)
         guard let top = topViewController() else { return }
         let host = UIHostingController(rootView: view)
         host.modalPresentationStyle = .pageSheet

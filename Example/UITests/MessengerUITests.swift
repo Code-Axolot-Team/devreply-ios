@@ -399,6 +399,70 @@ final class MessengerUITests: XCTestCase {
         snapshot(app, "b4-read")
     }
 
+    /// Screenshots for devreply.com (not a check): one billing conversation from the user's side, while
+    /// a script plays the developer in the dashboard. Runs only with DEVREPLY_TOUR=1 and a throwaway app's key.
+    @MainActor
+    func testWebsiteTour() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["DEVREPLY_TOUR"] == "1", let pk = env["DEVREPLY_TEST_PK"] else { throw XCTSkip("DEVREPLY_TOUR not set") }
+        let app = XCUIApplication()
+        app.launchEnvironment["DEVREPLY_PK"] = pk
+        app.launch()
+        sleep(2)
+        snapshot(app, "t1-app")
+
+        app.buttons["openMessenger"].tap()
+        let billing = app.buttons["devreply.start.billing"]
+        XCTAssertTrue(billing.waitForExistence(timeout: 15))
+        sleep(2)
+        snapshot(app, "t2-home")
+
+        billing.tap()
+        let name = app.textFields["devreply.profile.name"]
+        if name.waitForExistence(timeout: 5) {
+            name.tap()
+            name.typeText("Maya")
+            app.buttons["devreply.profile.save"].tap()
+        }
+        let composer = app.textFields["devreply.composer"].exists ? app.textFields["devreply.composer"] : app.textViews["devreply.composer"]
+        XCTAssertTrue(composer.waitForExistence(timeout: 10))
+        composer.tap()
+        composer.typeText("I paid for Pro but it's still locked. Can you help?")
+        app.buttons["devreply.send"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["devreply.notice"].waitForExistence(timeout: 10))
+        if app.buttons["devreply.emailask.skip"].waitForExistence(timeout: 3) { app.buttons["devreply.emailask.skip"].tap() }
+        if app.buttons["devreply.push.notnow"].waitForExistence(timeout: 3) { app.buttons["devreply.push.notnow"].tap() }
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
+        sleep(2)
+        snapshot(app, "t3-sent")
+
+        // Back to the app: the developer's reply shows up as the bubble (and the in-app banner).
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["Close"].tap()
+        let bubble = app.buttons["devreply.bubble"]
+        XCTAssertTrue(bubble.waitForExistence(timeout: 180))
+        sleep(1)
+        snapshot(app, "t4-bubble")
+
+        bubble.tap()
+        let reply = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'So sorry'")).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 20))
+        sleep(2)
+        snapshot(app, "t5-reply")
+
+        composer.tap()
+        composer.typeText("It works now, thank you!")
+        app.buttons["devreply.send"].tap()
+        XCTAssertTrue(app.staticTexts["It works now, thank you!"].waitForExistence(timeout: 10))
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
+        let resolved = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH '✓ Marked as resolved'")).firstMatch
+        XCTAssertTrue(resolved.waitForExistence(timeout: 180))
+        sleep(2)
+        snapshot(app, "t6-resolved")
+    }
+
     /// Push, allowed: soft ask after the first message → Apple's prompt → Allow → card gone. Then, with the
     /// chat closed, a push for this conversation (sent by the test script) shows DevReply's banner; tapping
     /// it opens the conversation. Needs `TEST_RUNNER_DEVREPLY_TEST_PK` and a fresh install.

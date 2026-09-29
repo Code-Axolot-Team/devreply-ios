@@ -141,7 +141,7 @@ private struct BubbleView: View {
 
     var body: some View {
         Button(action: onTap) {
-            Image("devreply-mark", bundle: .module)
+            Image("devreply-mark", bundle: .devReply)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 32, height: 32)
