@@ -15,6 +15,7 @@ final class MessengerUITests: XCTestCase {
         snapshot(app, "2-messenger-home")
 
         tile.tap()
+        fillNameIfAsked(app)
         let composer = app.textFields["devreply.composer"].exists ? app.textFields["devreply.composer"] : app.textViews["devreply.composer"]
         XCTAssertTrue(composer.waitForExistence(timeout: 5))
         snapshot(app, "3-new-conversation")
@@ -43,7 +44,10 @@ final class MessengerUITests: XCTestCase {
         snapshot(app, "s2-home")
         app.swipeUp()
         snapshot(app, "s3-home-scrolled")
+        app.swipeDown() // with several conversations the tiles scroll out (and unload): back to the top
+        XCTAssertTrue(tile.waitForExistence(timeout: 5))
         tile.tap()
+        fillNameIfAsked(app)
         XCTAssertTrue(app.buttons["devreply.attach"].waitForExistence(timeout: 5))
         snapshot(app, "s4-new-conversation")
         app.navigationBars.buttons.element(boundBy: 0).tap()
@@ -585,6 +589,166 @@ final class MessengerUITests: XCTestCase {
         if app.buttons["devreply.emailask.skip"].exists { app.buttons["devreply.emailask.skip"].tap() }
         if app.buttons["devreply.push.notnow"].exists { app.buttons["devreply.push.notnow"].tap() }
         sleep(1)
+    }
+
+    // MARK: SDK 0.4: personas, app icon, team faces, deep links
+    // A script plays the team: it waits for the conversation, replies as two personas ("Anna" twice,
+    // then "Sergei"), and then runs part 2 with the conversation's id. Throwaway app only.
+
+    /// Part 1: who replied shows once per group, and the home screen shows the team's faces.
+    @MainActor
+    func testPersonasPart1() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["DEVREPLY_PERSONAS"] == "1", let pk = env["DEVREPLY_TEST_PK"] else { throw XCTSkip("DEVREPLY_PERSONAS not set") }
+        let app = XCUIApplication()
+        app.launchEnvironment["DEVREPLY_PK"] = pk
+        app.launch()
+        app.buttons["openMessenger"].tap()
+        let tile = app.buttons["devreply.start.question"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 20))
+        tile.tap()
+        let name = app.textFields["devreply.profile.name"]
+        if name.waitForExistence(timeout: 5) {
+            name.tap()
+            name.typeText("Mia")
+            app.buttons["devreply.profile.save"].tap()
+        }
+        let composer = app.textFields["devreply.composer"].firstMatch.exists ? app.textFields["devreply.composer"] : app.textViews["devreply.composer"]
+        XCTAssertTrue(composer.waitForExistence(timeout: 10))
+        composer.tap()
+        composer.typeText("How do I export my notes?")
+        app.buttons["devreply.send"].tap()
+        XCTAssertTrue(app.staticTexts["How do I export my notes?"].waitForExistence(timeout: 10))
+
+        // The team answers: Anna twice, then Sergei. Two labels, not three.
+        XCTAssertTrue(app.staticTexts["Sergei"].waitForExistence(timeout: 150), "the replies arrive")
+        sleep(2)
+        let labels = app.descendants(matching: .any).matching(identifier: "devreply.persona")
+        XCTAssertEqual(labels.count, 2, "one label per group")
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == 'Anna'")).count, 1, "Anna once for her two replies")
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == 'Sergei'")).count, 1)
+        // The email card and the keyboard away, to see the thread.
+        if app.buttons["No thanks"].exists { app.buttons["No thanks"].tap() }
+        app.staticTexts["How do I export my notes?"].swipeDown(velocity: .slow)
+        sleep(2)
+        snapshot(app, "ios04-thread")
+
+        app.navigationBars.buttons.firstMatch.tap()
+        let team = app.descendants(matching: .any)["devreply.team"]
+        XCTAssertTrue(team.waitForExistence(timeout: 15), "the team's faces on the home screen")
+        XCTAssertTrue(team.label.contains("Anna") && team.label.contains("Sergei"), team.label)
+        sleep(2)
+        snapshot(app, "ios04-home")
+    }
+
+    /// Part 2: the email button's deep link opens that conversation; an unknown one opens the home screen.
+    @MainActor
+    func testPersonasPart2DeepLink() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let pk = env["DEVREPLY_TEST_PK"], let cid = env["DEVREPLY_TEST_CID"] else { throw XCTSkip("DEVREPLY_TEST_CID not set") }
+        let app = XCUIApplication()
+        app.launchEnvironment["DEVREPLY_PK"] = pk
+        app.launch()
+        XCTAssertTrue(app.buttons["openMessenger"].waitForExistence(timeout: 10))
+
+        XCUIDevice.shared.system.open(URL(string: "devreplyexample://devreply?devreply=\(UUID().uuidString.lowercased())")!)
+        XCTAssertTrue(app.buttons["devreply.start.question"].waitForExistence(timeout: 20), "unknown conversation: the home screen")
+        app.buttons["Close"].firstMatch.tap()
+        sleep(2)
+
+        XCUIDevice.shared.system.open(URL(string: "devreplyexample://devreply?devreply=\(cid)")!)
+        XCTAssertTrue(app.staticTexts["How do I export my notes?"].waitForExistence(timeout: 20), "opens that conversation")
+        XCTAssertTrue(app.staticTexts["Sergei"].waitForExistence(timeout: 10))
+        sleep(2)
+        snapshot(app, "ios04-deeplink")
+    }
+
+    /// A refused public key: with the messenger open (it refreshes every 10 s), registration is tried at
+    /// 0 s and again after 1 min, not in a loop. The server log counts the attempts.
+    @MainActor
+    func testRefusedKeyBacksOff() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let pk = env["DEVREPLY_BACKOFF_PK"] else { throw XCTSkip("DEVREPLY_BACKOFF_PK not set") }
+        let app = XCUIApplication()
+        app.launchEnvironment["DEVREPLY_PK"] = pk
+        app.launch()
+        app.buttons["openMessenger"].tap()
+        XCTAssertTrue(app.buttons["devreply.start.question"].waitForExistence(timeout: 15), "the messenger still opens")
+        sleep(75)
+        snapshot(app, "ios04-refused-key")
+    }
+
+    /// The chat asks for a name before the first message (spec 05) on a new install.
+    @MainActor
+    private func fillNameIfAsked(_ app: XCUIApplication) {
+        let name = app.textFields["devreply.profile.name"]
+        guard name.waitForExistence(timeout: 5) else { return }
+        name.tap()
+        name.typeText("Sim Tester")
+        app.buttons["devreply.profile.save"].tap()
+    }
+
+    // MARK: Languages (spec 05): the chat in the app's chosen language, replies still arrive.
+
+    /// Spanish: home, name form, composer, "we got it", and a team reply (a script answers as a persona,
+    /// in Spanish, when it sees "Hola desde el simulador <nonce>"). Needs DEVREPLY_L10N=1.
+    @MainActor
+    func testChatInSpanish() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["DEVREPLY_L10N"] == "1", let pk = env["DEVREPLY_TEST_PK"] else { throw XCTSkip("DEVREPLY_L10N not set") }
+        let nonce = env["DEVREPLY_TEST_NONCE"] ?? "0"
+        let app = XCUIApplication()
+        app.launchEnvironment["DEVREPLY_PK"] = pk
+        app.launchEnvironment["DEVREPLY_LOCALE"] = "es"
+        app.launch()
+        app.buttons["openMessenger"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '¡Hola!'")).firstMatch.waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["Inicia una conversación"].exists)
+        XCTAssertTrue(app.staticTexts["Suele responder en 3 días hábiles"].exists, "the reply time, translated")
+        XCTAssertTrue(app.buttons["devreply.start.bug"].label.contains("Algo no funciona"), app.buttons["devreply.start.bug"].label)
+        sleep(2)
+        snapshot(app, "ios-l10n-es-home")
+
+        app.buttons["devreply.start.question"].tap()
+        let name = app.textFields["devreply.profile.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ==[c] 'Antes de empezar'")).firstMatch.exists)
+        XCTAssertEqual(name.placeholderValue, "Tu nombre")
+        name.tap()
+        name.typeText("Mia")
+        app.buttons["devreply.profile.save"].tap()
+        let composer = app.textFields["devreply.composer"].firstMatch.exists ? app.textFields["devreply.composer"] : app.textViews["devreply.composer"]
+        XCTAssertTrue(composer.waitForExistence(timeout: 10))
+        XCTAssertEqual(composer.placeholderValue, "Mensaje…")
+        composer.tap()
+        composer.typeText("Hola desde el simulador \(nonce)")
+        app.buttons["devreply.send"].tap()
+        XCTAssertTrue(app.staticTexts["¡Gracias, lo recibimos!"].waitForExistence(timeout: 15))
+
+        // The team answers (in Spanish, as a persona): it arrives under the persona's label.
+        XCTAssertTrue(app.staticTexts["Te respondo en español \(nonce)"].waitForExistence(timeout: 150), "the reply arrives")
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "devreply.persona").count, 1)
+        if app.buttons["No, gracias"].exists { app.buttons["No, gracias"].tap() }
+        app.staticTexts["Hola desde el simulador \(nonce)"].swipeDown(velocity: .slow)
+        sleep(2)
+        snapshot(app, "ios-l10n-es-chat")
+    }
+
+    /// Japanese: the home screen and the chat's first screen, from the same launch setting.
+    @MainActor
+    func testHomeInJapanese() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["DEVREPLY_L10N"] == "1", let pk = env["DEVREPLY_TEST_PK"] else { throw XCTSkip("DEVREPLY_L10N not set") }
+        let app = XCUIApplication()
+        app.launchEnvironment["DEVREPLY_PK"] = pk
+        app.launchEnvironment["DEVREPLY_LOCALE"] = "ja"
+        app.launch()
+        app.buttons["openMessenger"].tap()
+        XCTAssertTrue(app.staticTexts["会話を始める"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["あなたの会話"].waitForExistence(timeout: 20), "the Spanish run's conversation is listed")
+        XCTAssertTrue(app.staticTexts["通常3営業日以内に返信します"].exists)
+        sleep(2)
+        snapshot(app, "ios-l10n-ja-home")
     }
 
     @MainActor

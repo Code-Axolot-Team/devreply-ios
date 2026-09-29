@@ -20,12 +20,18 @@ struct ExampleApp: App {
         let key = ProcessInfo.processInfo.environment["DEVREPLY_PK"]
             ?? (Bundle.main.object(forInfoDictionaryKey: "DevReplyPublicKey") as? String) ?? ""
         DevReply.configure(key)
+        // The chat follows the device's language; an app with its own language setting passes it on.
+        if let locale = ProcessInfo.processInfo.environment["DEVREPLY_LOCALE"] { DevReply.setLocale(locale) }
         // What the app knows about this user shows up next to them in the dashboard.
         DevReply.setAttributes(["demo_app": true, "build": 1])
     }
 
     var body: some Scene {
-        WindowGroup { ContentView() }
+        WindowGroup {
+            ContentView()
+                // DevReply's email button opens devreplyexample://devreply?devreply=<conversation>.
+                .onOpenURL { url in _ = DevReply.handle(url) }
+        }
     }
 }
 

@@ -12,11 +12,11 @@ Requires iOS 17, Swift 6 / Xcode 16 or later.
 
 ## Install
 
-Swift Package Manager: `https://github.com/Code-Axolot-Team/devreply-ios`, product `DevReply`, "Up to Next Major" from `0.3.2`.
+Swift Package Manager: `https://github.com/Code-Axolot-Team/devreply-ios`, product `DevReply`, "Up to Next Major" from `0.4.0`.
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/Code-Axolot-Team/devreply-ios", from: "0.3.2")
+.package(url: "https://github.com/Code-Axolot-Team/devreply-ios", from: "0.4.0")
 ```
 
 Using a coding agent? Give it your app's setup guide from the dashboard (Settings → Add DevReply to your app):
@@ -38,7 +38,24 @@ DevReply.setUser(name: "Ana", email: "ana@example.com")
 DevReply.setAttributes(["plan": "pro", "trial": false])
 DevReply.theme = DevReplyTheme(primary: .yellow, accent: .pink)
 DevReply.showsUnreadBubble = false    // if you show DevReply.unreadCount yourself
+DevReply.setLocale("es")              // your app's own language setting; nil follows the device
 ```
+
+Each reply shows who wrote it (the teammate's name, title and photo) and the header shows your app icon. The chat
+speaks the device's language (15 languages: English, Spanish, Portuguese, French, German, Italian, Dutch, Polish,
+Russian, Ukrainian, Turkish, Greek, Japanese, Korean, Chinese).
+
+**Replies from email:** DevReply emails users replies they haven't read, with a "Reply in the app" button that opens
+`yourapp://devreply?devreply=<conversation>`. Add a URL scheme and pass links to DevReply first:
+
+```swift
+.onOpenURL { url in
+    if DevReply.handle(url) { return }
+    // your own links
+}
+```
+
+Then set `yourapp://devreply` as the deep link in the dashboard (the app → Settings).
 
 SwiftUI: `.devReplyMessenger(isPresented: $showChat)`.
 

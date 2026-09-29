@@ -26,6 +26,10 @@ targets:
       path: Info.plist
       properties:
         DevReplyPublicKey: $(DEVREPLY_PK)
+        # The deep link DevReply's email button opens (DevReply → Settings: devreplyexample://devreply).
+        CFBundleURLTypes:
+          - CFBundleURLName: com.codeaxolot.devreply.example
+            CFBundleURLSchemes: [devreplyexample]
     entitlements:
       path: Sources/DevReplyExample.entitlements
       properties:
