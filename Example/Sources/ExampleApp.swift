@@ -23,8 +23,11 @@ struct ExampleApp: App {
             // UI tests and screenshots without an account: an in-process fake of the API (StubAPI.swift).
             StubAPI.install()
             DevReply.configure("pk_stub", apiURL: StubAPI.baseURL)
+            SheetProbe.startIfAsked()
         } else {
-            DevReply.configure(key)
+            // DEVREPLY_API_URL: a local server (development and the live end-to-end UI test).
+            let apiURL = env["DEVREPLY_API_URL"].flatMap(URL.init(string:)) ?? DevReply.defaultAPIURL
+            DevReply.configure(key, apiURL: apiURL)
         }
         // Dark mode: DevReply's own dark look whenever the app is dark (without it the chat stays light).
         DevReply.darkTheme = .dark

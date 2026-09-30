@@ -18,7 +18,8 @@ final class L10nTests: XCTestCase {
 
     func testEveryLanguageHasEveryText() {
         let keys = Set(DevReplyStrings.table("en").keys)
-        XCTAssertEqual(DevReplyStrings.languages.count, 15)
+        XCTAssertEqual(DevReplyStrings.languages.count, 34)
+        XCTAssertEqual(DevReplyStrings.rtl, ["ar", "he"])
         for language in DevReplyStrings.languages {
             XCTAssertEqual(Set(DevReplyStrings.table(language).keys), keys, language)
         }

@@ -12,11 +12,11 @@ Requires iOS 17, Swift 6 / Xcode 16 or later.
 
 ## Install
 
-Swift Package Manager: `https://github.com/Code-Axolot-Team/devreply-ios`, product `DevReply`, "Up to Next Major" from `0.4.4`.
+Swift Package Manager: `https://github.com/Code-Axolot-Team/devreply-ios`, product `DevReply`, "Up to Next Major" from `0.5.0`.
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/Code-Axolot-Team/devreply-ios", from: "0.4.4")
+.package(url: "https://github.com/Code-Axolot-Team/devreply-ios", from: "0.5.0")
 ```
 
 Using a coding agent? Give it your app's setup guide from the dashboard (Settings → Add DevReply to your app):
@@ -43,8 +43,8 @@ DevReply.setLocale("es")              // your app's own language setting; nil fo
 ```
 
 Each reply shows who wrote it (the teammate's name, title and photo) and the header shows your app icon. The chat
-speaks the device's language (15 languages: English, Spanish, Portuguese, French, German, Italian, Dutch, Polish,
-Russian, Ukrainian, Turkish, Greek, Japanese, Korean, Chinese).
+speaks the device's language: 34 languages, every one iOS itself ships in, including Hebrew and Arabic, which lay
+out right to left (English otherwise).
 
 **Replies from email:** DevReply emails users replies they haven't read, with a "Reply in the app" button that opens
 `yourapp://devreply?devreply=<conversation>`. Add a URL scheme and pass links to DevReply first:
@@ -70,6 +70,13 @@ DevReply.present(category: .bug, message: "The export failed: ", attributes: ["s
 `present` returns `false` and shows nothing when DevReply isn't configured or your team switched the chat off in the
 dashboard. `DevReply.isAvailable` tells you up front (to hide your own "Contact us" button, say). While it's off, the
 unread bubble and banners stay hidden too; login, logout, deleteUser, push and attributes keep working.
+
+`askName: false` skips "Before we start" (the name form) while that messenger is open, for a screen where one tap to
+the message matters more than a name, like a failed purchase. The email ask after the first message stays:
+
+```swift
+DevReply.present(category: .billing, message: "My purchase didn't go through", askName: false)
+```
 
 **Events** for your analytics:
 

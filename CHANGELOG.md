@@ -4,6 +4,29 @@ Released versions stay supported: the API only grows, and every released version
 against the server on every change. Features added later may be missing in an older version; nothing it
 uses breaks.
 
+## 0.5.0
+
+- 34 languages (adds Arabic, Catalan, Croatian, Czech, Danish, Finnish, Hebrew, Hindi, Hungarian, Indonesian, Malay,
+  Norwegian, European Portuguese, Romanian, Slovak, Swedish, Thai, Vietnamese, Traditional Chinese). Hebrew and Arabic
+  lay the chat out right to left.
+- `present(…, askName: false)`: no name form while that messenger is open (e.g. from a failed purchase); the chat
+  goes straight to the composer. The email ask after the first message stays.
+- Builds on Xcode 26.2: the unread bubble's fade used an expression that compiler finds ambiguous.
+- Swift 6 language mode: `DevReply.defaultAPIURL` is `nonisolated`, so it works as `configure`'s default argument.
+- Replies from the team and agents in Markdown (the `markdown` block, `min_sdk` 0.5.0): bold, italic, strike, code,
+  links (open in the browser), headings, lists, code blocks and quotes, drawn natively. Older versions show the
+  plain-text fallback.
+- Fixed: in a chat longer than the screen, dragging the history up at the newest message pulled the whole sheet
+  down. The thread is now a regular scroll view that opens at, and follows, the newest message.
+- Button replies (the `buttons` block, `min_sdk` 0.5.0): the team's question in Markdown with 2 to 5 answers as
+  buttons; a tap sends the label with `answer`, the chosen one stays highlighted, the others go quiet (a 409, already
+  answered, reloads the thread); the composer stays. Older versions show the numbered plain-text fallback.
+- Same device after logout: a random device key (256 bits, Keychain, kept through `logout()` and `deleteUser()`) goes
+  with each install registration; when `login` gets the earlier user back (`restored: true`), the chat reloads.
+- Live updates: while the messenger is open, new messages arrive over a WebSocket (`POST /v1/live`, resume with
+  `after`, reconnect 1–30 s with ±20% jitter, polling after 5 failures in a row or a 503); the 3 s poll runs only while it's down.
+- The unread bubble wears DevReply's new logo: the "Tilt" star on a black circle with a pink shadow.
+
 ## 0.4.4
 
 * `DevReply.present(category:message:attributes:)`: `message` prefills the composer of the new conversation

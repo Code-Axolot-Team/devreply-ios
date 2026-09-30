@@ -234,6 +234,22 @@ final class DeletionStub: URLProtocol, @unchecked Sendable {
         messenger.setPresentation(message: "   ", attributes: [:])
         #expect(messenger.presentationMessage == nil)
     }
+
+    @Test func askNameFalseSkipsTheNameFormUntilTheMessengerCloses() {
+        let messenger = Messenger.shared
+        messenger.setPresentation(message: nil, attributes: [:])
+        #expect(messenger.needsName)  // no profile name yet
+
+        messenger.setPresentation(message: nil, attributes: [:], askName: false)
+        messenger.messengerAppeared()
+        #expect(!messenger.needsName)
+        // Still skipped after the first message: the composer stays for the follow-ups.
+        messenger.conversationStarted(UUID(), category: nil)
+        #expect(!messenger.needsName)
+
+        messenger.messengerDisappeared()
+        #expect(messenger.needsName)
+    }
 }
 
 // MARK: - Dark mode

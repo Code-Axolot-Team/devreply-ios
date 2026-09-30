@@ -134,6 +134,39 @@ final class V044UITests: XCTestCase {
         XCTAssertTrue(composer(again).waitForExistence(timeout: 10))
     }
 
+    /// Hebrew and Arabic (next release): the chat lays out from the right, the user's bubbles on the left,
+    /// the back button on the right; the name form too. Screenshots for review.
+    @MainActor
+    func testRightToLeft() throws {
+        let texts = [
+            "he": ("אפשר לייצא את הנתונים שלי לגיליון?", "זה כולל כל רשומה מאז שהתחלתם."),
+            "ar": ("هل يمكنني تصدير بياناتي كجدول بيانات؟", "يتضمن كل إدخال منذ أن بدأت."),
+        ]
+        for (lang, (mine, theirs)) in texts.sorted(by: { $0.key > $1.key }) {
+            let app = launch("light", ["DEVREPLY_LOCALE": lang])
+            app.buttons["openMessenger"].tap()
+            XCTAssertTrue(app.buttons["devreply.start.bug"].waitForExistence(timeout: 10))
+            sleep(1)
+            shot(app, "ios-rtl-\(lang)-home")
+            let row = app.buttons.containing(NSPredicate(format: "label CONTAINS 'CSV'")).firstMatch
+            XCTAssertTrue(row.waitForExistence(timeout: 10))
+            row.tap()
+            let user = app.staticTexts[mine], team = app.staticTexts[theirs]
+            XCTAssertTrue(team.waitForExistence(timeout: 10))
+            sleep(1)
+            // Right to left: the team speaks from the right, the user answers from the left.
+            XCTAssertLessThan(user.frame.minX, team.frame.minX)
+            shot(app, "ios-rtl-\(lang)-chat")
+            app.terminate()
+
+            let fresh = launch("light", ["DEVREPLY_LOCALE": lang, "DEVREPLY_STUB_NO_NAME": "1"])
+            fresh.buttons["reportBug"].tap()
+            sleep(2)
+            shot(fresh, "ios-rtl-\(lang)-name")
+            fresh.terminate()
+        }
+    }
+
     @MainActor
     private func shot(_ app: XCUIApplication, _ name: String) {
         let screenshot = app.screenshot()
